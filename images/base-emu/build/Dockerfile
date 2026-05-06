@@ -73,9 +73,26 @@ github_download(){
     if [ -z "$api_suffix" ]; then
         jq_prefix='[.[] | select(.prerelease==false and .draft==false)][0]'
     fi
-    curl -s "$url" | \
-    jq "${jq_prefix}.assets[]|select(.name|endswith(\"${ext}\"))${extra_filter}.browser_download_url" | \
-    xargs wget -O "$out_file"
+
+    # Previously: `curl -s | jq | xargs wget -O <file>`. Three failure modes:
+    #   1. `curl -s` hides HTTP errors (rate-limit / 5xx) and emits an error
+    #      JSON; jq then finds no .assets[] and outputs nothing.
+    #   2. With empty stdin, GNU xargs still invokes `wget -O <file>` once
+    #      with no URL; wget exits 1, xargs exits 123, build fails.
+    #   3. No retries anywhere; a single blip kills the build.
+    # Fix: fail-loud curl with retries, validate the URL, retrying wget.
+    local response
+    response=$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --retry-max-time 60 "$url")
+
+    local download_url
+    download_url=$(echo "$response" | jq -r "${jq_prefix}.assets[]|select(.name|endswith(\"${ext}\"))${extra_filter}.browser_download_url" | head -n 1)
+
+    if [ -z "$download_url" ] || [ "$download_url" = "null" ]; then
+        echo "github_download: no asset matching ${ext}${extra_filter:+ filter ${extra_filter}} in ${repo}${api_suffix}" >&2
+        return 1
+    fi
+
+    wget --tries=5 --waitretry=2 --timeout=30 -O "$out_file" "$download_url"
 }
 
 gitlab_download(){
