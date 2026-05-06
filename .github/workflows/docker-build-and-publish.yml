@@ -255,25 +255,30 @@ jobs:
           echo "==> Buildx outputs: ${BUILDX_OUTPUT}"
           echo "==> GitHub server URL: ${GITHUB_SERVER_URL}"
 
+      # Artifact name must match the upload step's name in the producing job,
+      # which appends the variant suffix (see "Upload docker image as artifact"
+      # below). The consuming job inherits the same `inputs.variant` from
+      # auto-build.yml's chain (e.g. base-app-fedora -> base-fedora), so the
+      # suffix here mirrors that of the upstream upload.
       - name: Download base image artifact
         id: download-base-image-artifact
         if: ${{ needs.prepare.outputs.is_fork == 'true' && steps.prep.outputs.base_image_name != '' }}
         uses: dawidd6/action-download-artifact@v10
         with:
-          name: docker-${{ steps.prep.outputs.base_image_name }}-${{ env.PLATFORM_PAIR }}.tar
+          name: docker-${{ steps.prep.outputs.base_image_name }}${{ inputs.variant != '' && format('-{0}', inputs.variant) || '' }}-${{ env.PLATFORM_PAIR }}.tar
           workflow_search: true
           search_artifacts: true
           allow_forks: true
           workflow_conclusion: ""
           commit: ${{ github.event.pull_request.head.sha }}
           path: /tmp/
-      
+
       - name: Download base-app image artifact
         id: download-base-app-image-artifact
         if: ${{ needs.prepare.outputs.is_fork == 'true' && steps.prep.outputs.base_app_image_name != '' }}
         uses: dawidd6/action-download-artifact@v10
         with:
-          name: docker-${{ steps.prep.outputs.base_app_image_name }}-${{ env.PLATFORM_PAIR }}.tar
+          name: docker-${{ steps.prep.outputs.base_app_image_name }}${{ inputs.variant != '' && format('-{0}', inputs.variant) || '' }}-${{ env.PLATFORM_PAIR }}.tar
           workflow_search: true
           search_artifacts: true
           allow_forks: true
