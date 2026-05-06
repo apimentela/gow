@@ -299,8 +299,8 @@ jobs:
             type=edge,branch=master,suffix=${{ inputs.variant != '' && format('-{0}', inputs.variant) || '' }}
             type=ref,event=branch,suffix=${{ inputs.variant != '' && format('-{0}', inputs.variant) || '' }}
             type=sha,suffix=${{ inputs.variant != '' && format('-{0}', inputs.variant) || '' }}
-            ${{ inputs.variant == 'fedora' && 'type=raw,value=fedora' || '' }}
-            ${{ inputs.variant == 'fedora' && 'type=raw,value=fedora-43' || '' }}
+            ${{ inputs.variant == 'fedora' && github.event_name == 'push' && github.ref == 'refs/heads/master' && 'type=raw,value=fedora' || '' }}
+            ${{ inputs.variant == 'fedora' && github.event_name == 'push' && github.ref == 'refs/heads/master' && 'type=raw,value=fedora-43' || '' }}
           flavor: |
             latest=auto
 
@@ -489,8 +489,8 @@ jobs:
             type=edge,branch=master,suffix=${{ inputs.variant != '' && format('-{0}', inputs.variant) || '' }}
             type=ref,event=branch,suffix=${{ inputs.variant != '' && format('-{0}', inputs.variant) || '' }}
             type=sha,suffix=${{ inputs.variant != '' && format('-{0}', inputs.variant) || '' }}
-            ${{ inputs.variant == 'fedora' && 'type=raw,value=fedora' || '' }}
-            ${{ inputs.variant == 'fedora' && 'type=raw,value=fedora-43' || '' }}
+            ${{ inputs.variant == 'fedora' && github.event_name == 'push' && github.ref == 'refs/heads/master' && 'type=raw,value=fedora' || '' }}
+            ${{ inputs.variant == 'fedora' && github.event_name == 'push' && github.ref == 'refs/heads/master' && 'type=raw,value=fedora-43' || '' }}
           flavor: |
             latest=auto
 
