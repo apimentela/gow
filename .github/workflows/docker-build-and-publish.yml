@@ -58,7 +58,16 @@ jobs:
 
       - id: set-docker-vars
         run: |
-          if [[ "${{ github.repository }}" == "games-on-whales/gow" ]]; then
+          # github.repository is always the base repo (games-on-whales/gow) even
+          # for fork PRs, so we can't use it to detect forks. Instead compare
+          # the PR head repo against the base repo.
+          IS_FORK_PR=false
+          if [[ "${{ github.event_name }}" == "pull_request" ]] && \
+             [[ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
+            IS_FORK_PR=true
+          fi
+
+          if [[ "${IS_FORK_PR}" == "false" ]]; then
             IS_FORK=false
             GHCR_NAMESPACE="${{ github.repository_owner }}"
             DOCKERHUB_NAMESPACE="${{ env.DOCKERHUB_NAMESPACE }}"
@@ -66,16 +75,10 @@ jobs:
           else
             # Forks shall push to <username>/gow/<image-name>
             IS_FORK=true
-            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-              # For PRs, we use the forked repository owner as namespace
-              # This allows us to pull build caches from the forked repository
-              owner=$(echo ${{ github.event.pull_request.head.repo.owner.login }} | tr '[:upper:]' '[:lower:]')
-              GHCR_NAMESPACE="${owner}/gow"
-            else
-              # For branches, we use the repository owner as namespace
-              owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')
-              GHCR_NAMESPACE="${owner}/gow"
-            fi
+            # For PRs, we use the forked repository owner as namespace
+            # This allows us to pull build caches from the forked repository
+            owner=$(echo ${{ github.event.pull_request.head.repo.owner.login }} | tr '[:upper:]' '[:lower:]')
+            GHCR_NAMESPACE="${owner}/gow"
             DOCKERHUB_NAMESPACE="${{ env.DOCKERHUB_NAMESPACE }}"
             ARM64_RUNNER=${{ env.ARM64_RUNNER != '' && env.ARM64_RUNNER || 'ubuntu-latest' }}
           fi
@@ -252,25 +255,30 @@ jobs:
           echo "==> Buildx outputs: ${BUILDX_OUTPUT}"
           echo "==> GitHub server URL: ${GITHUB_SERVER_URL}"
 
+      # Artifact name must match the upload step's name in the producing job,
+      # which appends the variant suffix (see "Upload docker image as artifact"
+      # below). The consuming job inherits the same `inputs.variant` from
+      # auto-build.yml's chain (e.g. base-app-fedora -> base-fedora), so the
+      # suffix here mirrors that of the upstream upload.
       - name: Download base image artifact
         id: download-base-image-artifact
         if: ${{ needs.prepare.outputs.is_fork == 'true' && steps.prep.outputs.base_image_name != '' }}
         uses: dawidd6/action-download-artifact@v10
         with:
-          name: docker-${{ steps.prep.outputs.base_image_name }}-${{ env.PLATFORM_PAIR }}.tar
+          name: docker-${{ steps.prep.outputs.base_image_name }}${{ inputs.variant != '' && format('-{0}', inputs.variant) || '' }}-${{ env.PLATFORM_PAIR }}.tar
           workflow_search: true
           search_artifacts: true
           allow_forks: true
           workflow_conclusion: ""
           commit: ${{ github.event.pull_request.head.sha }}
           path: /tmp/
-      
+
       - name: Download base-app image artifact
         id: download-base-app-image-artifact
         if: ${{ needs.prepare.outputs.is_fork == 'true' && steps.prep.outputs.base_app_image_name != '' }}
         uses: dawidd6/action-download-artifact@v10
         with:
-          name: docker-${{ steps.prep.outputs.base_app_image_name }}-${{ env.PLATFORM_PAIR }}.tar
+          name: docker-${{ steps.prep.outputs.base_app_image_name }}${{ inputs.variant != '' && format('-{0}', inputs.variant) || '' }}-${{ env.PLATFORM_PAIR }}.tar
           workflow_search: true
           search_artifacts: true
           allow_forks: true
