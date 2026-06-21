@@ -21,7 +21,7 @@ RUN dnf install -y git meson ca-certificates dpkg-dev && \
 FROM ${BASE_APP_IMAGE}
 
 ARG LUTRIS_VERSION=0.5.22
-ARG GAMEPAD_UI_VERSION=v0.1.34
+ARG GAMEPAD_UI_VERSION=v0.2.0
 
 # Install RPM Fusion for wine and multimedia codecs
 RUN dnf install -y \
